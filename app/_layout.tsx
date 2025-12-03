@@ -1,24 +1,18 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Slot } from 'expo-router';
+import { useEffect, useState } from 'react';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+export default function Layout() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+  useEffect(() => {
+    const checkLogin = async () => {
+      const loggedIn = await AsyncStorage.getItem('loggedIn');
+      setIsLoggedIn(loggedIn === 'true');
+    };
+    checkLogin();
+  }, []);
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-  );
+  // If not logged in, show login screen; else, show dashboard
+  return <Slot />;
 }
