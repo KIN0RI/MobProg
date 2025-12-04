@@ -1,9 +1,10 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Alert, Button, FlatList, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
+import { Alert, FlatList, StyleSheet, View } from "react-native";
+import { Button, Text } from "react-native-paper";
 
-interface Request {
+type CertificateRequest = {
   id: string;
   certType: string;
   fullName: string;
@@ -13,185 +14,248 @@ interface Request {
   email: string;
   status: string;
   submittedAt: string;
-  submittedBy?: string;
-}
+  submittedBy: string;
+};
 
 export default function HomeTab() {
-  const [requests, setRequests] = useState<Request[]>([]);
+  const [requests, setRequests] = useState<CertificateRequest[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
 
+  const loadRequests = async () => {
+    try {
+      const adminValue = await AsyncStorage.getItem("isAdmin");
+      setIsAdmin(adminValue === "true");
+
+      const saved = await AsyncStorage.getItem("requests");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setRequests(parsed);
+        }
+      }
+    } catch {
+      Alert.alert("Error", "Failed to load requests.");
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
-      const loadData = async () => {
-        const adminStatus = await AsyncStorage.getItem('isAdmin');
-        setIsAdmin(adminStatus === 'true');
-        
-        const storedRequests = await AsyncStorage.getItem('requests');
-        if (storedRequests) {
-          const allRequests = JSON.parse(storedRequests);
-          const isAdminUser = adminStatus === 'true';
-          
-          if (isAdminUser) {
-            setRequests(allRequests);
-          } else {
-            const currentUser = await AsyncStorage.getItem('currentUser');
-            const filteredRequests = allRequests.filter((req: Request) => req.submittedBy === currentUser);
-            setRequests(filteredRequests);
-          }
-        }
-      };
-      loadData();
+      loadRequests();
     }, [])
   );
 
-  const handleRequestCert = () => {
-    router.push('/request');
+  const handleRefresh = () => {
+    loadRequests();
+    Alert.alert("Refreshed", "Data has been updated.");
   };
 
-  const handleRefresh = async () => {
-    const adminStatus = await AsyncStorage.getItem('isAdmin');
-    setIsAdmin(adminStatus === 'true');
-    
-    const storedRequests = await AsyncStorage.getItem('requests');
-    if (storedRequests) {
-      const allRequests = JSON.parse(storedRequests);
-      const isAdminUser = adminStatus === 'true';
-      
-      if (isAdminUser) {
-        setRequests(allRequests);
-      } else {
-        const currentUser = await AsyncStorage.getItem('currentUser');
-        const filteredRequests = allRequests.filter((req: Request) => req.submittedBy === currentUser);
-        setRequests(filteredRequests);
-      }
-    }
-    Alert.alert('Refreshed', 'Data has been refreshed');
+  const formatDate = (isoString: string) => {
+    return new Date(isoString).toLocaleString();
   };
 
-  const handleRemoveRequest = async (id: string) => {
-    if (!isAdmin) {
-      Alert.alert('Error', 'Only admin can remove requests.');
-      return;
-    }
-    const storedRequests = await AsyncStorage.getItem('requests');
-    if (storedRequests) {
-      const updatedRequests = JSON.parse(storedRequests).filter((req: Request) => req.id !== id);
-      await AsyncStorage.setItem('requests', JSON.stringify(updatedRequests));
-      setRequests(updatedRequests);
-      Alert.alert('Removed', 'Certificate request has been removed.');
-    }
-  };
-
-  const handleDoneRequest = async (id: string) => {
-    if (!isAdmin) {
-      Alert.alert('Error', 'Only admin can mark requests as done.');
-      return;
-    }
-    const storedRequests = await AsyncStorage.getItem('requests');
-    if (storedRequests) {
-      const updatedRequests = JSON.parse(storedRequests).map((req: Request) =>
-        req.id === id ? { ...req, status: 'Done' } : req
-      );
-      await AsyncStorage.setItem('requests', JSON.stringify(updatedRequests));
-      setRequests(updatedRequests);
-      Alert.alert('Done', 'Certificate request has been marked as done.');
-    }
-  };
-
-  const handleReadyToReceiveRequest = async (id: string) => {
-    if (!isAdmin) {
-      Alert.alert('Error', 'Only admin can mark requests as ready to receive.');
-      return;
-    }
-    const storedRequests = await AsyncStorage.getItem('requests');
-    if (storedRequests) {
-      const updatedRequests = JSON.parse(storedRequests).map((req: Request) =>
-        req.id === id ? { ...req, status: 'Ready to Receive' } : req
-      );
-      await AsyncStorage.setItem('requests', JSON.stringify(updatedRequests));
-      setRequests(updatedRequests);
-      Alert.alert('Ready', 'Certificate is ready to receive.');
-    }
-  };
-
-  const formatDate = (dateString: string): string => {
-    if (!dateString) return 'N/A';
-    
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
-      return dateString;
-    }
-    
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      const [year, month, day] = dateString.split('-');
-      return `${month}/${day}/${year}`;
-    }
-    
+  const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      const date = new Date(dateString);
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const year = date.getFullYear();
-      return `${month}/${day}/${year}`;
+      const updated = requests.map((r) =>
+        r.id === id ? { ...r, status } : r
+      );
+      setRequests(updated);
+      await AsyncStorage.setItem("requests", JSON.stringify(updated));
     } catch {
-      return dateString;
+      Alert.alert("Error", "Failed to update request.");
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    try {
+      const filtered = requests.filter((r) => r.id !== id);
+      setRequests(filtered);
+      await AsyncStorage.setItem("requests", JSON.stringify(filtered));
+    } catch {
+      Alert.alert("Error", "Failed to remove request.");
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>My Certificate Requests</Text>
-      <View style={styles.topButtonContainer}>
-        {!isAdmin && <Button title="Request Certificate" onPress={handleRequestCert} />}
-        <Button title="Refresh" onPress={handleRefresh} color="purple" />
+      <Text style={styles.title}>Certificate Requests</Text>
+
+      {/* --------------------------- */}
+      {/* TOP BUTTONS (ADDED BACK)    */}
+      {/* --------------------------- */}
+      <View style={styles.topButtons}>
+        {!isAdmin && (
+          <Button
+            mode="contained"
+            onPress={() => router.push("/request")}
+            style={styles.btnRequest}
+          >
+            Request Certificate
+          </Button>
+        )}
+
+        <Button
+          mode="contained"
+          onPress={handleRefresh}
+          style={styles.btnRefresh}
+        >
+          Refresh
+        </Button>
       </View>
-      
+
       <FlatList
         data={requests}
         keyExtractor={(item) => item.id}
+        ListEmptyComponent={<Text style={styles.empty}>No certificate requests yet.</Text>}
         renderItem={({ item }) => (
-          <View style={styles.record}>
-            <Text>Certificate: {item.certType}</Text>
-            <Text>Name: {item.fullName}</Text>
-            {isAdmin && <Text>Address: {item.address}</Text>}
-            {isAdmin && <Text>Birthdate: {formatDate(item.birthdate)}</Text>}
-            {isAdmin && <Text>Contact: {item.contactNum}</Text>}
-            {isAdmin && <Text>Email: {item.email}</Text>}
-            {isAdmin && <Text>Submitted By: {item.submittedBy}</Text>}
-            <Text style={[styles.statusText, item.status === 'Pending' && styles.statusPending, item.status === 'Ready to Receive' && styles.statusReady, item.status === 'Done' && styles.statusDone]}>
+          <View style={styles.card}>
+            <Text style={styles.certType}>{item.certType}</Text>
+            <Text style={styles.label}>
+              Name: <Text style={styles.value}>{item.fullName}</Text>
+            </Text>
+
+            {isAdmin && (
+              <>
+                <Text style={styles.label}>Address: <Text style={styles.value}>{item.address}</Text></Text>
+                <Text style={styles.label}>Birthdate: <Text style={styles.value}>{item.birthdate}</Text></Text>
+                <Text style={styles.label}>Contact: <Text style={styles.value}>{item.contactNum}</Text></Text>
+                <Text style={styles.label}>Email: <Text style={styles.value}>{item.email}</Text></Text>
+                <Text style={styles.label}>Submitted By: <Text style={styles.value}>{item.submittedBy}</Text></Text>
+              </>
+            )}
+
+            <Text
+              style={[
+                styles.status,
+                item.status === "Pending" && styles.statusPending,
+                item.status === "Ready to Receive" && styles.statusReady,
+                item.status === "Done" && styles.statusDone,
+              ]}
+            >
               Status: {item.status}
             </Text>
-            <Text>Submitted: {formatDate(item.submittedAt)}</Text>
+
+            <Text style={styles.date}>Submitted: {formatDate(item.submittedAt)}</Text>
+
             {isAdmin && (
-              <View style={styles.adminButtonContainer}>
-                <View style={styles.buttonSmall}>
-                  <Button title="Ready" onPress={() => handleReadyToReceiveRequest(item.id)} color="blue" />
-                </View>
-                <View style={styles.buttonSmall}>
-                  <Button title="Done" onPress={() => handleDoneRequest(item.id)} color="green" />
-                </View>
-                <View style={styles.buttonSmall}>
-                  <Button title="Remove" onPress={() => handleRemoveRequest(item.id)} color="red" />
-                </View>
+              <View style={styles.adminButtons}>
+                <Button
+                  mode="contained"
+                  onPress={() => handleUpdateStatus(item.id, "Ready to Receive")}
+                  style={styles.btnReady}
+                >
+                  Ready
+                </Button>
+
+                <Button
+                  mode="contained"
+                  onPress={() => handleUpdateStatus(item.id, "Done")}
+                  style={styles.btnDone}
+                >
+                  Done
+                </Button>
+
+                <Button
+                  mode="contained"
+                  onPress={() => handleRemove(item.id)}
+                  style={styles.btnRemove}
+                >
+                  Remove
+                </Button>
               </View>
             )}
           </View>
         )}
-        ListEmptyComponent={<Text>No requests yet.</Text>}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 15, backgroundColor: '#fff' },
-  title: { fontSize: 26, fontWeight: '800', marginBottom: 15, color: '#000', borderBottomWidth: 1, borderBottomColor: '#ddd', paddingBottom: 10, textAlign: 'center' },
-  topButtonContainer: { flexDirection: 'row', gap: 10, marginBottom: 15 },
-  record: { padding: 10, borderBottomWidth: 1, borderColor: '#ccc' },
-  statusText: { fontSize: 14 },
-  statusPending: { color: 'green', fontWeight: 'bold' },
-  statusReady: { color: 'blue', fontWeight: 'bold' },
-  statusDone: { color: 'purple', fontWeight: 'bold' },
-  adminButtonContainer: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  buttonSmall: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: "#eef5ea",
+    padding: 15,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+    textAlign: "center",
+    marginBottom: 10,
+    color: "#1B5E20",
+  },
+
+  /* NEW BUTTON STYLES */
+  topButtons: {
+    flexDirection: "row",
+    marginBottom: 15,
+    gap: 10,
+  },
+  btnRequest: {
+    flex: 1,
+    backgroundColor: "#2E7D32",
+  },
+  btnRefresh: {
+    flex: 1,
+    backgroundColor: "#558B2F",
+  },
+
+  empty: {
+    textAlign: "center",
+    marginTop: 50,
+    fontSize: 16,
+    color: "#777",
+  },
+  card: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "#2E7D32",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    elevation: 3,
+  },
+  certType: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2E7D32",
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#444",
+  },
+  value: {
+    fontWeight: "400",
+    color: "#000",
+  },
+  status: {
+    marginTop: 10,
+    padding: 6,
+    borderRadius: 5,
+    fontWeight: "700",
+    textAlign: "center",
+    color: "#fff",
+  },
+  statusPending: { backgroundColor: "#F9A825" },
+  statusReady: { backgroundColor: "#388E3C" },
+  statusDone: { backgroundColor: "#1565C0" },
+
+  date: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#555",
+    textAlign: "right",
+  },
+  adminButtons: {
+    flexDirection: "row",
+    marginTop: 12,
+    justifyContent: "space-between",
+  },
+  btnReady: { backgroundColor: "#4CAF50" },
+  btnDone: { backgroundColor: "#1565C0" },
+  btnRemove: { backgroundColor: "#C62828" },
 });

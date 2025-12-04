@@ -1,7 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Alert, Button, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Animated,
+  Easing,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 export default function SettingsTab() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -9,6 +19,25 @@ export default function SettingsTab() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [currentUser, setCurrentUser] = useState('');
   const router = useRouter();
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 350,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -22,7 +51,7 @@ export default function SettingsTab() {
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      Alert.alert('Missing Fields', 'Please complete all fields.');
       return;
     }
 
@@ -31,8 +60,8 @@ export default function SettingsTab() {
       return;
     }
 
-    if (currentPassword === newPassword) {
-      Alert.alert('Error', 'New password must be different from current password.');
+    if (newPassword === currentPassword) {
+      Alert.alert('Error', 'New password cannot be the same.');
       return;
     }
 
@@ -41,7 +70,7 @@ export default function SettingsTab() {
       const users = existingUsers ? JSON.parse(existingUsers) : {};
 
       if (users[currentUser] !== currentPassword) {
-        Alert.alert('Error', 'Current password is incorrect.');
+        Alert.alert('Incorrect Password', 'Your current password is wrong.');
         return;
       }
 
@@ -53,79 +82,171 @@ export default function SettingsTab() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      Alert.alert('Error', 'Failed to change password.');
+      Alert.alert('Error', 'Unable to change password.');
     }
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('loggedIn');
+    await AsyncStorage.removeItem('currentUser');
     router.replace('/');
   };
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.label}>Username</Text>
-        <TextInput
-          style={[styles.input, styles.disabledInput]}
-          placeholder="Username"
-          value={currentUser}
-          editable={false}
-        />
 
-        <Text style={styles.label}>Current Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter current password"
-          secureTextEntry
-          value={currentPassword}
-          onChangeText={setCurrentPassword}
-        />
-
-        <Text style={styles.label}>New Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter new password"
-          secureTextEntry
-          value={newPassword}
-          onChangeText={setNewPassword}
-        />
-
-        <Text style={styles.label}>Confirm New Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Confirm new password"
-          secureTextEntry
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-        />
-
-        <Button title="Change Password" onPress={handleChangePassword} color="green" />
+      
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
-      <View style={styles.logoutSection}>
-        <Button title="Logout" onPress={handleLogout} color="red" />
-      </View>
+      <Animated.View 
+        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+      >
+
+        
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Account</Text>
+
+          <Text style={styles.label}>Username</Text>
+          <TextInput
+            style={[styles.input, styles.disabledInput]}
+            value={currentUser}
+            editable={false}
+          />
+
+          <Text style={styles.label}>Current Password</Text>
+          <TextInput
+            style={styles.input}
+            secureTextEntry
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+          />
+
+          <Text style={styles.label}>New Password</Text>
+          <TextInput
+            style={styles.input}
+            secureTextEntry
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
+
+          <Text style={styles.label}>Confirm New Password</Text>
+          <TextInput
+            style={styles.input}
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+
+          <TouchableOpacity style={styles.buttonPrimary} onPress={handleChangePassword}>
+            <Text style={styles.buttonText}>Change Password</Text>
+          </TouchableOpacity>
+        </View>
+
+
+        
+        <View style={styles.logoutBox}>
+          <TouchableOpacity style={styles.buttonLogout} onPress={handleLogout}>
+            <Text style={styles.buttonText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+
+      </Animated.View>
+
     </ScrollView>
   );
 }
 
+const ACCENT = '#1A8F4B';
+
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 15, backgroundColor: '#fff' },
-  title: { fontSize: 26, fontWeight: '800', marginBottom: 20, textAlign: 'center', color: '#000', borderBottomWidth: 1, borderBottomColor: '#ddd', paddingBottom: 10 },
-  section: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 8, marginBottom: 15 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: '#666' },
-  input: { borderWidth: 1, borderColor: '#ddd', padding: 12, marginBottom: 15, borderRadius: 5, backgroundColor: '#fff' },
-  disabledInput: { backgroundColor: '#e8e8e8', color: '#999' },
-  logoutSection: {
+  container: { flex: 1, backgroundColor: '#F1F6F2' },
+
+  header: {
+    backgroundColor: ACCENT,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    alignItems: 'center'
+  },
+
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+  },
+
+  card: {
     backgroundColor: '#fff',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    marginBottom: 12,
-    borderLeftWidth: 2,
-    borderLeftColor: '#ffffff',
+    marginHorizontal: 18,
+    marginTop: 18,
+    padding: 18,
+    borderRadius: 18,
+
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: ACCENT,
+    marginBottom: 15,
+  },
+
+  label: {
+    fontSize: 14,
+    color: '#444',
+    marginBottom: 5,
+  },
+
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 15,
+    backgroundColor: '#fafafa',
+  },
+
+  disabledInput: {
+    backgroundColor: '#e9e9e9',
+    color: '#777',
+  },
+
+  placeholder: {
+    fontSize: 14,
+    color: '#666',
+    paddingVertical: 6,
+  },
+
+  buttonPrimary: {
+    backgroundColor: ACCENT,
+    padding: 12,
+    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center'
+    marginTop: 5,
+  },
+
+  buttonLogout: {
+    backgroundColor: '#C62828',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    width: '60%',
+  },
+
+  buttonText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+
+  logoutBox: {
+    marginTop: 20,
+    alignItems: 'center',
+    paddingBottom: 40,
   },
 });

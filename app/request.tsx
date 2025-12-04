@@ -1,167 +1,223 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Picker } from '@react-native-picker/picker';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Button, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from "@react-native-picker/picker";
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import {
+  Alert,
+  Button,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 export default function RequestScreen() {
-  const [certType, setCertType] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [address, setAddress] = useState('');
-  const [birthdate, setBirthdate] = useState('');
-  const [contactNum, setContactNum] = useState('');
-  const [email, setEmail] = useState('');
   const router = useRouter();
 
-  const handleSubmit = async () => {
-    if (!certType || !fullName || !address || !birthdate || !contactNum || !email) {
-      Alert.alert('Error', 'Please fill in all fields.');
-      return;
-    }
+  // FORM STATES
+  const [certType, setCertType] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [address, setAddress] = useState("");
+  const [birthdate, setBirthdate] = useState("");
+  const [contactNum, setContactNum] = useState("");
+  const [email, setEmail] = useState("");
 
-    // Validate phone number (must be 11 digits)
-    if (contactNum.length !== 11) {
-      Alert.alert('Error', 'Contact number must be 11 digits.');
-      return;
-    }
+  // For date picker
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Validate email (must end with @gmail.com)
-    if (!email.endsWith('@gmail.com')) {
-      Alert.alert('Error', 'Email must be a Gmail address (@gmail.com).');
-      return;
-    }
+  const handleDateChange = (event: any, selectedDate: Date | undefined) => {
+    setShowDatePicker(false);
 
-    try {
-      // Get current user
-      const currentUser = await AsyncStorage.getItem('currentUser');
-      
-      // Create request object with "pending" status
-      const request = {
-        id: Date.now().toString(),
-        certType,
-        fullName,
-        address,
-        birthdate,
-        contactNum,
-        email,
-        status: 'Pending',
-        submittedAt: new Date().toISOString(),
-        submittedBy: currentUser,
-      };
-
-      // Store locally
-      const existingRequests = await AsyncStorage.getItem('requests');
-      const requests = existingRequests ? JSON.parse(existingRequests) : [];
-      requests.push(request);
-      await AsyncStorage.setItem('requests', JSON.stringify(requests));
-
-      Alert.alert('Success', 'Certificate request submitted successfully!');
-      // Reset form
-      setCertType('');
-      setFullName('');
-      setAddress('');
-      setBirthdate('');
-      setContactNum('');
-      setEmail('');
-      
-      // Navigate back to dashboard
-      router.back();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to submit request.');
-      console.error('Submit error:', error);
+    if (selectedDate) {
+      const formatted = selectedDate.toISOString().split("T")[0];
+      setBirthdate(formatted);
     }
   };
 
+  const handleSubmit = async () => {
+    if (!certType || !fullName || !address) {
+      Alert.alert("Missing Fields", "Please fill out all required fields.");
+      return;
+    }
+
+    const newRequest = {
+      id: Date.now().toString(),
+      certType,
+      fullName,
+      address,
+      birthdate,
+      contactNum,
+      email,
+      submittedAt: new Date().toISOString(),
+      status: "Pending",
+      submittedBy: fullName,
+    };
+
+    // Save to "requests"
+    const stored = await AsyncStorage.getItem("requests");
+    const parsed = stored ? JSON.parse(stored) : [];
+
+    parsed.push(newRequest);
+    await AsyncStorage.setItem("requests", JSON.stringify(parsed));
+
+    Alert.alert("Success", "Your request has been submitted.");
+    router.push("/dashboard/home");
+  };
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Request Certificate</Text>
-      
-      <Text style={styles.label}>Certificate Type</Text>
-      <Picker
-        selectedValue={certType}
-        onValueChange={(itemValue) => setCertType(itemValue)}
-        style={styles.picker}
-      >
-        <Picker.Item label="Select Type" value="" />
-        <Picker.Item label="Death Certificate" value="Death Certificate" />
-        <Picker.Item label="Marriage Certificate" value="Marriage Certificate" />
-        <Picker.Item label="Birth Certificate" value="Birth Certificate" />
-        <Picker.Item label="Certificate of No Marriage Record (Cenomar)" value="Cenomar" />
-        <Picker.Item label="Certificate of No Death Record (Ceno Death)" value="Ceno Death" />
-      </Picker>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Request a Certificate</Text>
 
-      <Text style={styles.label}>Full Name</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter full name"
-        value={fullName}
-        onChangeText={setFullName}
-      />
+      <View style={styles.card}>
 
-      <Text style={styles.label}>Address</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter address"
-        value={address}
-        onChangeText={setAddress}
-      />
+        {/* CERTIFICATE TYPE */}
+        <Text style={styles.label}>Certificate Type*</Text>
+        <View style={styles.pickerWrapper}>
+          <Picker
+            selectedValue={certType}
+            onValueChange={(itemValue) => setCertType(itemValue)}
+            style={styles.picker}
+          >
+            <Picker.Item label="Select Type" value="" />
+            <Picker.Item label="Death Certificate" value="Death Certificate" />
+            <Picker.Item label="Marriage Certificate" value="Marriage Certificate" />
+            <Picker.Item label="Birth Certificate" value="Birth Certificate" />
+            <Picker.Item 
+              label="Certificate of No Marriage Record (Cenomar)" 
+              value="Cenomar" 
+            />
+            <Picker.Item 
+              label="Certificate of No Death Record (Ceno Death)" 
+              value="Ceno Death" 
+            />
+          </Picker>
+        </View>
 
-      <Text style={styles.label}>Birthdate (MM/DD/YYYY)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g., 01/15/1990"
-        value={birthdate}
-        onChangeText={setBirthdate}
-      />
+        {/* FULL NAME */}
+        <Text style={styles.label}>Full Name*</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Your full name"
+          value={fullName}
+          onChangeText={setFullName}
+        />
 
-      <Text style={styles.label}>Contact Number (11 digits)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g., 09123456789"
-        keyboardType="phone-pad"
-        value={contactNum}
-        onChangeText={(text) => {
-          // Allow only numbers and limit to 11 digits
-          const numericText = text.replace(/[^0-9]/g, '');
-          if (numericText.length <= 11) {
-            setContactNum(numericText);
-          }
-        }}
-        maxLength={11}
-      />
+        {/* ADDRESS */}
+        <Text style={styles.label}>Address*</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Your complete address"
+          value={address}
+          onChangeText={setAddress}
+        />
 
-      <Text style={styles.label}>Email Address (@gmail.com)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="example@gmail.com"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
+        {/* DATE PICKER FOR BIRTHDATE */}
+        <Text style={styles.label}>Birthdate</Text>
 
-      {/* Separated buttons in a row */}
-      <View style={styles.buttonContainer}>
-        <Button title="Submit Request" onPress={handleSubmit} />
-        <View style={styles.buttonSpacer} />
-        <Button title="Back to Dashboard" onPress={() => router.back()} />
+        <TextInput
+          style={styles.input}
+          placeholder="YYYY-MM-DD"
+          value={birthdate}
+          onPressIn={() => setShowDatePicker(true)}
+        />
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={birthdate ? new Date(birthdate) : new Date()}
+            mode="date"
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            onChange={handleDateChange}
+          />
+        )}
+
+        {/* CONTACT */}
+        <Text style={styles.label}>Contact Number</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="09xxxxxxxxx"
+          keyboardType="numeric"
+          value={contactNum}
+          onChangeText={setContactNum}
+        />
+
+        {/* EMAIL */}
+        <Text style={styles.label}>Email Address</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="example@email.com"
+          value={email}
+          onChangeText={setEmail}
+        />
       </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+      <View style={styles.submitButton}>
+        <Button title="Submit Request" color="#0a7d38" onPress={handleSubmit} />
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { padding: 20 },
-  title: { fontSize: 24, textAlign: 'center', marginBottom: 20 },
-  label: { fontSize: 16, marginTop: 10, marginBottom: 5 },
-  input: { borderWidth: 1, padding: 10, marginBottom: 10, borderRadius: 5 },
-  picker: { borderWidth: 1, marginBottom: 10 },
-  buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
-  buttonSpacer: { width: 10 },  // Space between buttons
+  container: {
+    padding: 20,
+    backgroundColor: "#e9f5ee",
+    flexGrow: 1,
+  },
+
+  title: {
+    fontSize: 26,
+    fontWeight: "700",
+    color: "#0a7d38",
+    marginBottom: 20,
+  },
+
+  card: {
+    backgroundColor: "#ffffff",
+    padding: 20,
+    borderRadius: 14,
+    borderLeftWidth: 6,
+    borderLeftColor: "#e6b800",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 12,
+    color: "#0a7d38",
+  },
+
+  input: {
+    backgroundColor: "#f4f4f4",
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 5,
+    fontSize: 14,
+  },
+
+  submitButton: {
+    marginTop: 10,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+
+  /** ADD PICKER STYLES HERE */
+  pickerWrapper: {
+    backgroundColor: "#f4f4f4",
+    borderRadius: 8,
+    marginTop: 5,
+  },
+
+  picker: {
+    height: 50,
+  },
 });
+
+
