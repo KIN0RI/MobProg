@@ -47,7 +47,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Civil Registry Login</Text>
+      <Text style={styles.title}>SwiftServe</Text>
       <TextInput
         style={styles.input}
         placeholder="Username"

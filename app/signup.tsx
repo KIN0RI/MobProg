@@ -48,7 +48,7 @@ export default function SignupScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Civil Registry Sign Up</Text>
+      <Text style={styles.title}>SwiftServe</Text>
       <TextInput
         style={styles.input}
         placeholder="Username"

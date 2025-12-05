@@ -37,7 +37,7 @@ export default function Layout() {
   if (!isReady) {
     return (
       <View style={styles.splashContainer}>
-        <Text style={styles.splashText}>Civil Registry App</Text>
+        <Text style={styles.splashText}>SwiftServe</Text>
         <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
       </View>
     );

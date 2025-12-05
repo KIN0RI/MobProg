@@ -29,7 +29,7 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.safeContainer}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Civil Registry Dashboard</Text>
+          <Text style={styles.headerTitle}>SwiftServe</Text>
         </View>
 
         <Tab.Navigator
