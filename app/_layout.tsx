@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff', // Splash screen background color
   },
   splashText: {
-    fontSize: 30, // Larger font size for a more impactful look
+    fontSize: 40, // Larger font size for a more impactful look
     fontWeight: 'bold', // Bold text
     color: '#010101ff', // A vibrant green color
     letterSpacing: 3, // Increase letter spacing for a wider look
